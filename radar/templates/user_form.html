@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% set source = form if form else user if user else {} %}
+{% block title %}{{ 'Edit user' if user else 'Add user' }} · Software Release Radar{% endblock %}
+{% block content %}
+<section class="page-heading compact-heading"><div><span class="eyebrow">{{ 'EDIT USER' if user else 'NEW USER' }}</span><h1>{{ user['username'] if user else 'Add user' }}</h1><p>Create an administrator or standard dashboard account.</p></div></section>
+<form method="post" class="panel tracker-form narrow-form account-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="form-grid two-col aligned-form-grid">
+<div class="form-field"><label for="user-username">Username</label><small class="field-help">Used to sign in to Release Radar.</small><input id="user-username" name="username" value="{{ source.get('username', '') or '' }}" required></div>
+<div class="form-field"><label for="user-email">Email address</label><small class="field-help">Used for password resets and email notifications.</small><input id="user-email" type="email" name="email" value="{{ source.get('email', '') or '' }}"></div>
+<div class="form-field"><label for="user-role">Role</label><small class="field-help">Administrators can manage settings and users.</small><select id="user-role" name="role"><option value="user" {{ 'selected' if source.get('role', 'user') == 'user' else '' }}>User</option><option value="admin" {{ 'selected' if source.get('role') == 'admin' else '' }}>Administrator</option></select></div>
+<div class="form-field"><label for="user-password">{{ 'New password' if user else 'Password' }}</label><small class="field-help">{{ 'Leave blank to keep the current password.' if user else 'Minimum 10 characters.' }}</small><input id="user-password" type="password" name="password" minlength="10" {{ '' if user else 'required' }} autocomplete="new-password"></div>
+</div>
+<div class="toggle-grid">
+<label class="toggle-card"><input type="checkbox" name="active" {{ 'checked' if source.get('active', 1)|int else '' }}><span><strong>Active account</strong><small>Allow this user to sign in.</small></span></label>
+<label class="toggle-card"><input type="checkbox" name="notify_email" {{ 'checked' if source.get('notify_email', 1)|int else '' }}><span><strong>Email notifications</strong><small>Send release updates to this email address.</small></span></label>
+<label class="toggle-card"><input type="checkbox" name="notify_pushover" {{ 'checked' if source.get('notify_pushover', 0)|int else '' }}><span><strong>Pushover notifications</strong><small>The user configures their key from Profile.</small></span></label>
+</div>
+<div class="form-actions"><a class="button secondary" href="{{ url_for('users') }}">Cancel</a><button class="button primary" type="submit">Save user</button></div>
+</form>
+{% endblock %}
