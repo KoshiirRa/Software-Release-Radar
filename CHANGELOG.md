@@ -6,7 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 ## [Unreleased]
 
-No unreleased changes are currently recorded.
+### Added
+
+- A clearly labelled Global defaults section for inherited software notification behaviour and delivery channels.
+
+### Fixed
+
+- Per-software notification preference changes now save immediately without reloading the Notifications page.
+- Bulk software preferences and global notification defaults now save without clearing the current software filter.
+- The Notifications software search is retained for the browser session, including after a manual refresh.
 
 ---
 
