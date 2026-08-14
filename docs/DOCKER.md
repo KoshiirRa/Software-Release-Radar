@@ -86,6 +86,11 @@ docker compose logs --tail=100 radar scheduler inventory-worker
 
 `.env` is local deployment configuration and must not be committed.
 
+Compose passes every supported setting through explicit variable interpolation.
+This preserves the normal local `.env` workflow while allowing stack managers
+such as Dockhand to inject encrypted variables without creating a physical
+`.env` file in the Git checkout.
+
 The safe template is `.env.example`.
 
 | Setting | Purpose | Default |
