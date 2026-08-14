@@ -32,7 +32,7 @@ The setup script:
 6. validates the Compose configuration;
 7. builds and starts the stack;
 8. waits for the web application to report healthy; and
-9. confirms the scheduler and Portainer worker are running.
+9. confirms the scheduler and inventory worker are running.
 
 The administrator password itself is not written to `.env`.
 
@@ -50,7 +50,7 @@ The Compose stack contains three long-running services built from the same Pytho
 |---|---|
 | `radar` | Flask application served by Gunicorn |
 | `scheduler` | Runs due release checks automatically and dispatches notifications for new releases |
-| `portainer-worker` | Processes Portainer synchronisation and bulk-import jobs |
+| `inventory-worker` | Processes inventory-provider synchronisation and bulk-import jobs |
 
 Compose assigns project-scoped container and volume names automatically. The repository deliberately does not hard-code global container names or a global database-volume name. This prevents two independent checkouts from silently colliding or sharing the same database.
 
@@ -62,7 +62,7 @@ The scheduler wakes every 60 seconds by default, but it only checks trackers who
 docker compose ps
 ```
 
-The `radar` service should show `healthy`. The `scheduler` and `portainer-worker` services should show `running`.
+The `radar` service should show `healthy`. The `scheduler` and `inventory-worker` services should show `running`.
 
 Check the health endpoint:
 
@@ -79,7 +79,7 @@ Expected shape for v2.8.0:
 View recent logs:
 
 ```bash
-docker compose logs --tail=100 radar scheduler portainer-worker
+docker compose logs --tail=100 radar scheduler inventory-worker
 ```
 
 ## Environment file
@@ -169,13 +169,13 @@ See [Security hardening](SECURITY-HARDENING.md) for the full production checklis
 
 If you configure a token, use the least privilege needed. Tracking public repositories only requires read access to public release information.
 
-## Portainer
+## Docker inventory providers
 
-Portainer integration is optional.
+Portainer and Dockhand inventory integration is optional.
 
 Use a dedicated, least-privileged API token. TLS verification is enabled by default inside the application. Do not disable certificate verification simply to work around an invalid certificate.
 
-The Portainer worker can remain running when Portainer integration is disabled. It sleeps while no jobs are queued.
+The inventory worker can remain running when inventory integration is disabled. It sleeps while no jobs are queued.
 
 ## SSH Docker probes
 
@@ -296,9 +296,9 @@ Add a least-privileged `GITHUB_TOKEN` to `.env`, then restart:
 docker compose up -d
 ```
 
-### Portainer connection fails
+### Docker inventory providers connection fails
 
-Use the Settings page to test Portainer. Verify the URL, API token, certificate trust and network path from the Release Radar service to Portainer.
+Use the Settings page to test the selected provider. Verify its URL, API token, certificate trust and network path from the Release Radar service. For Dockhand, also confirm each environment test succeeds.
 
 ### Need more help
 

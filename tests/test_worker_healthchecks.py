@@ -8,8 +8,8 @@ class WorkerHealthcheckTests(unittest.TestCase):
     def test_non_web_services_disable_image_http_healthcheck(self):
         compose = (Path(__file__).parents[1] / "docker-compose.yml").read_text()
 
-        scheduler = compose.split("  scheduler:\n", 1)[1].split("\n  portainer-worker:\n", 1)[0]
-        worker = compose.split("  portainer-worker:\n", 1)[1].split("\nvolumes:\n", 1)[0]
+        scheduler = compose.split("  scheduler:\n", 1)[1].split("\n  inventory-worker:\n", 1)[0]
+        worker = compose.split("  inventory-worker:\n", 1)[1].split("\nvolumes:\n", 1)[0]
 
         for service in (scheduler, worker):
             self.assertIn("healthcheck:\n      disable: true", service)
