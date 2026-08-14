@@ -51,7 +51,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  portainer-worker:
+  inventory-worker:
     image: "software-release-radar:${RADAR_VERSION:-2.8.0}"
     build:
       context: .
@@ -64,7 +64,7 @@ services:
     environment:
       RADAR_DB: /data/radar.db
       RADAR_SSH_DIR: /ssh
-    command: ["python", "-m", "radar.portainer_worker"]
+    command: ["python", "-m", "radar.inventory_worker"]
     healthcheck:
       disable: true
     depends_on:
