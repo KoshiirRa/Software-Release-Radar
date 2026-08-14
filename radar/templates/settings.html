@@ -69,7 +69,7 @@
           <legend>{{ label }}</legend>
           <div class="form-grid two-col">
             <label>{{ label }} base URL<input type="url" name="{{ provider }}_base_url" value="{{ settings[provider ~ '_base_url'] }}" placeholder="https://{{ provider }}.example.com"></label>
-            <label>API token <small>{{ 'configured; leave blank to keep' if token_configured else ('create a bearer API token in Dockhand' if provider == 'dockhand' else 'create a dedicated read-only token') }}</small><input type="password" name="{{ provider }}_api_token" autocomplete="off"></label>
+            <label>API token <small>{{ 'configured; leave blank to keep' if token_configured else ('create a bearer API token under your Dockhand profile' if provider == 'dockhand' else 'create a dedicated read-only token') }}</small><input type="password" name="{{ provider }}_api_token" autocomplete="off"></label>
             <label>Inventory interval<select name="{{ provider }}_sync_hours">{% for hours in allowed_refresh_hours %}<option value="{{ hours }}" {{ 'selected' if settings[provider ~ '_sync_hours']|int == hours else '' }}>Every {{ hours }} hour{{ '' if hours == 1 else 's' }}</option>{% endfor %}</select></label>
             <label>API timeout seconds<input type="number" min="5" max="120" name="{{ provider }}_timeout" value="{{ settings[provider ~ '_timeout'] or '20' }}"></label>
           </div>
