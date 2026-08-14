@@ -107,7 +107,7 @@ Create a dedicated Portainer API access token with permission to list the requir
 ### Dockhand
 
 1. Sign in to Dockhand with an account that can view the required environments and containers.
-2. Open **Settings → Authentication → API Tokens**.
+2. Open your user **Profile** by clicking your avatar in the sidebar, then scroll to **API tokens**.
 3. Create a dedicated token for Release Radar and copy the dh_ value when it is shown.
 4. In Release Radar, select **Dockhand**, enter the Dockhand base URL and paste the token.
 5. Save, choose **Test inventory connection**, then open **Inventory** and synchronise.
