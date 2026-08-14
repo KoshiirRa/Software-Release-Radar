@@ -114,6 +114,10 @@ Create a dedicated Portainer API access token with permission to list the requir
 
 Release Radar sends the token only as Authorization: Bearer. It stores the token encrypted and never returns it to the browser after saving.
 
+When a reverse proxy terminates HTTPS in front of an HTTP-only Dockhand service, prefer configuring Release Radar with the reverse proxy HTTPS URL. Keep `ALLOW_INSECURE_INTEGRATIONS=false` in that arrangement because the bearer token remains encrypted between Release Radar and the proxy.
+
+If Release Radar instead connects directly to Dockhand over an internal HTTP URL, such as `http://dockhand:3000`, set `ALLOW_INSECURE_INTEGRATIONS=true` in the Release Radar deployment. This is an explicit trusted-network exception because the bearer token crosses that network in cleartext. A reverse proxy used by browser clients does not protect a separate direct HTTP connection from Release Radar to Dockhand.
+
 Dockhand's container route currently returns an empty JSON list both for a genuinely empty environment and when its Docker connection fails. Release Radar therefore calls POST /api/environments/{id}/test before GET /api/containers?env={id}&all=true. Only a successful test permits reconciliation. An unavailable or malformed environment retains its last-known inventory and is shown as offline or error.
 
 Dockhand supplies container IDs, names, image references, state, status, health, labels, ports, networks and Compose labels through its container list. Image IDs are retained when supplied by the installed Dockhand version. Current Dockhand list responses may omit image IDs, in which case Release Radar leaves that optional field empty rather than guessing.
