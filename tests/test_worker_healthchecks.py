@@ -5,6 +5,19 @@ from pathlib import Path
 
 
 class WorkerHealthcheckTests(unittest.TestCase):
+    def test_compose_injects_required_secrets_without_physical_env_file(self):
+        compose = (Path(__file__).parents[1] / "docker-compose.yml").read_text()
+        self.assertNotIn("env_file:", compose)
+        self.assertIn("SECRET_KEY: \"${SECRET_KEY:?SECRET_KEY is required}\"", compose)
+        self.assertIn(
+            "ENCRYPTION_KEY: \"${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}\"",
+            compose,
+        )
+        self.assertIn(
+            "ADMIN_PASSWORD_HASH: \"${ADMIN_PASSWORD_HASH:?ADMIN_PASSWORD_HASH is required}\"",
+            compose,
+        )
+
     def test_non_web_services_disable_image_http_healthcheck(self):
         compose = (Path(__file__).parents[1] / "docker-compose.yml").read_text()
 
