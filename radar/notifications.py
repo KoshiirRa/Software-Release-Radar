@@ -31,8 +31,9 @@ PUSHOVER_KEYS = [
     "pushover_priority",
     "pushover_sound",
 ]
+DISCORD_KEYS = ["discord_enabled"]
 NOTIFICATION_MODES = frozenset({"inherit", "on", "off"})
-NOTIFICATION_CHANNELS = ("email", "pushover")
+NOTIFICATION_CHANNELS = ("email", "pushover", "discord")
 
 
 class NotificationError(RuntimeError):
@@ -207,6 +208,56 @@ def send_pushover(
             "Pushover rejected the message: "
             + "; ".join(result.get("errors") or ["unknown error"])
         )
+
+
+def validate_discord_webhook_url(webhook_url: str) -> str:
+    parsed = urllib.parse.urlsplit(webhook_url.strip())
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in {"discord.com", "discordapp.com"}
+        or not parsed.path.startswith("/api/webhooks/")
+        or parsed.username
+        or parsed.password
+        or parsed.fragment
+    ):
+        raise NotificationError("Enter a valid Discord HTTPS webhook URL.")
+    return urllib.parse.urlunsplit(parsed)
+
+
+def send_discord(
+    webhook_url: str,
+    title: str,
+    message: str,
+    url: str | None = None,
+) -> None:
+    raw = get_settings(DISCORD_KEYS)
+    if not _as_bool(raw["discord_enabled"]):
+        raise NotificationError("Discord notifications are disabled.")
+    target = validate_discord_webhook_url(webhook_url)
+    content = f"**{title[:256]}**\n{message}"
+    if url:
+        content += f"\n{url}"
+    payload = json.dumps(
+        {"content": content[:2000], "allowed_mentions": {"parse": []}}
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        target,
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": f"Software-Release-Radar/{APP_VERSION}",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:  # nosec B310
+            if response.status not in {200, 204}:
+                raise NotificationError(f"Discord returned HTTP {response.status}.")
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", "replace")[:500]
+        raise NotificationError(f"Discord returned HTTP {exc.code}: {detail}") from exc
+    except urllib.error.URLError as exc:
+        raise NotificationError(f"Discord delivery failed: {exc}") from exc
 
 
 def _release_message(event) -> tuple[str, str, str | None]:
@@ -390,6 +441,11 @@ def dispatch_release_notifications(
                         "skipped",
                         "Pushover notifications are disabled.",
                     )
+                elif (
+                    channel == "discord"
+                    and not int(user["notify_discord"] or 0)
+                ):
+                    status, error = "skipped", "Discord notifications are disabled."
                 else:
                     try:
                         if channel == "email":
@@ -405,7 +461,7 @@ def dispatch_release_notifications(
                                     title,
                                     body + suffix,
                                 )
-                        else:
+                        elif channel == "pushover":
                             user_key = decrypt_secret(
                                 user["pushover_user_key_enc"]
                             )
@@ -421,6 +477,12 @@ def dispatch_release_notifications(
                                     body,
                                     release_url,
                                 )
+                        else:
+                            webhook_url = decrypt_secret(user["discord_webhook_url_enc"])
+                            if not webhook_url:
+                                status, error = "skipped", "User has no Discord webhook URL."
+                            else:
+                                send_discord(webhook_url, title, body, release_url)
                     except (NotificationError, RuntimeError) as exc:
                         status, error = "failed", str(exc)[:1000]
 
@@ -462,6 +524,8 @@ def notification_smoke_test(*, send: bool = False) -> dict[str, object]:
             channels.append("email")
         if int(user["notify_pushover"] or 0):
             channels.append("pushover")
+        if int(user["notify_discord"] or 0):
+            channels.append("discord")
         if channels:
             recipients.append(
                 {
@@ -529,6 +593,23 @@ def notification_smoke_test(*, send: bool = False) -> dict[str, object]:
                     "error": error,
                 }
             )
+
+        if int(user["notify_discord"] or 0):
+            status, error = "sent", None
+            webhook_url = decrypt_secret(user["discord_webhook_url_enc"])
+            if not webhook_url:
+                status, error = "skipped", "User has no Discord webhook URL."
+            else:
+                try:
+                    send_discord(
+                        webhook_url,
+                        str(payload["title"]),
+                        str(payload["message"]),
+                    )
+                except (NotificationError, RuntimeError) as exc:
+                    status, error = "failed", str(exc)[:1000]
+            counts[status] += 1
+            results.append({"user_id": int(user["id"]), "channel": "discord", "status": status, "error": error})
 
     return {
         "mode": "sent",

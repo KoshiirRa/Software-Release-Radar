@@ -157,7 +157,7 @@ The following visuals use neutral demo data and contain no private production in
 | 🐳 **Portainer or Dockhand** | Inventory and source-name synchronisation with local aliases and resilient container rebinding |
 | ✅ **Review workflow** | Update, Wait, Ignore, Deployed and Needs Attention decisions |
 | 🩺 **Diagnostics** | Separates real updates from checker failures and unavailable comparisons |
-| 🔔 **Notifications** | System-wide, personal, channel and per-software controls for SMTP email and Pushover |
+| 🔔 **Notifications** | System-wide, personal, channel and per-software controls for SMTP email, Pushover and Discord webhooks |
 | 🧠 **Optional AI** | OpenAI-compatible release comparison and tracker chat |
 | 👥 **Multi-user** | Administrator and standard-user roles |
 | 💾 **Data safety** | SQLite WAL mode, online backup helper and guarded restore helper |

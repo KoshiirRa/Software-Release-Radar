@@ -243,7 +243,7 @@ class FleetNotificationTests(unittest.TestCase):
             "radar.notifications.send_pushover"
         ) as send_pushover:
             counts = dispatch_release_notifications([first_event])
-            self.assertEqual(counts, {"sent": 0, "failed": 0, "skipped": 2})
+            self.assertEqual(counts, {"sent": 0, "failed": 0, "skipped": 3})
             send_email.assert_not_called()
             send_pushover.assert_not_called()
 
@@ -267,7 +267,7 @@ class FleetNotificationTests(unittest.TestCase):
                     ).lastrowid
                 )
             counts = dispatch_release_notifications([second_event])
-            self.assertEqual(counts, {"sent": 1, "failed": 0, "skipped": 1})
+            self.assertEqual(counts, {"sent": 1, "failed": 0, "skipped": 2})
             self.assertEqual(send_email.call_count, 1)
             send_pushover.assert_not_called()
 
@@ -284,7 +284,7 @@ class FleetNotificationTests(unittest.TestCase):
                     ).lastrowid
                 )
             counts = dispatch_release_notifications([third_event])
-            self.assertEqual(counts, {"sent": 0, "failed": 0, "skipped": 2})
+            self.assertEqual(counts, {"sent": 0, "failed": 0, "skipped": 3})
             self.assertEqual(send_email.call_count, 1)
 
         with connect() as conn:
@@ -294,7 +294,7 @@ class FleetNotificationTests(unittest.TestCase):
                  WHERE status='skipped'
                 """
             ).fetchone()[0]
-        self.assertEqual(skipped, 5)
+        self.assertEqual(skipped, 8)
 
     def test_fleet_and_notification_routes_save_preferences(self):
         tracker_id = self._portainer_tracker()

@@ -47,6 +47,10 @@
       <input type="checkbox" name="notify_pushover" {{ 'checked' if notification_user.notify_pushover else '' }}>
       <span><strong>Default Pushover channel</strong><small>{{ 'A Pushover key is configured.' if has_pushover_key else 'No Pushover key is configured.' }} Manage your address and key under Profile.</small></span>
     </label>
+    <label class="toggle-card notification-toggle-card">
+      <input type="checkbox" name="notify_discord" {{ 'checked' if notification_user.notify_discord else '' }}>
+      <span><strong>Default Discord channel</strong><small>{{ 'A Discord webhook is configured.' if has_discord_webhook else 'No Discord webhook is configured.' }} Manage your webhook under Profile.</small></span>
+    </label>
   </div>
   <div class="form-actions notification-default-actions">
     <a class="button secondary" href="{{ url_for('profile') }}">Open profile</a>

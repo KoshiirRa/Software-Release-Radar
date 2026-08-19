@@ -15,6 +15,7 @@
 <label class="toggle-card"><input type="checkbox" name="active" {{ 'checked' if source.get('active', 1)|int else '' }}><span><strong>Active account</strong><small>Allow this user to sign in.</small></span></label>
 <label class="toggle-card"><input type="checkbox" name="notify_email" {{ 'checked' if source.get('notify_email', 1)|int else '' }}><span><strong>Email notifications</strong><small>Send release updates to this email address.</small></span></label>
 <label class="toggle-card"><input type="checkbox" name="notify_pushover" {{ 'checked' if source.get('notify_pushover', 0)|int else '' }}><span><strong>Pushover notifications</strong><small>The user configures their key from Profile.</small></span></label>
+<label class="toggle-card"><input type="checkbox" name="notify_discord" {{ 'checked' if source.get('notify_discord', 0)|int else '' }}><span><strong>Discord notifications</strong><small>The user configures their webhook from Profile.</small></span></label>
 </div>
 <div class="form-actions"><a class="button secondary" href="{{ url_for('users') }}">Cancel</a><button class="button primary" type="submit">Save user</button></div>
 </form>

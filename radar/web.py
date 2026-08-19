@@ -23,7 +23,7 @@ from .db import (
     set_settings, transaction, utcnow,
 )
 from .github import GitHubError, get_recent_releases, normalise_repository
-from .notifications import NotificationError, dispatch_release_notifications, send_email, send_pushover
+from .notifications import NotificationError, dispatch_release_notifications, send_discord, send_email, send_pushover, validate_discord_webhook_url
 from .probes import probe_all, probe_tracker
 from .presentation import render_assistant_text
 from .portainer import (PortainerError, ignore_service, inventory_summary,
@@ -1063,18 +1063,29 @@ def create_app() -> Flask:
                     encrypted_key = encrypt_secret(pushover_key)
                 elif request.form.get("clear_pushover_key"):
                     encrypted_key = ""
+                discord_webhook = request.form.get("discord_webhook_url", "").strip()
+                encrypted_discord_webhook = g.user["discord_webhook_url_enc"]
+                if discord_webhook:
+                    encrypted_discord_webhook = encrypt_secret(
+                        validate_discord_webhook_url(discord_webhook)
+                    )
+                elif request.form.get("clear_discord_webhook_url"):
+                    encrypted_discord_webhook = ""
                 with transaction() as conn:
                     conn.execute(
                         """
                         UPDATE users SET username = ?, email = ?, password_hash = ?,
-                            notify_email = ?, notify_pushover = ?, pushover_user_key_enc = ?, updated_at = ?
+                            notify_email = ?, notify_pushover = ?, pushover_user_key_enc = ?,
+                            notify_discord = ?, discord_webhook_url_enc = ?, updated_at = ?
                         WHERE id = ?
                         """,
                         (
                             username, email, password_hash,
                             1 if request.form.get("notify_email") else 0,
                             1 if request.form.get("notify_pushover") else 0,
-                            encrypted_key, utcnow(), g.user["id"],
+                            encrypted_key,
+                            1 if request.form.get("notify_discord") else 0,
+                            encrypted_discord_webhook, utcnow(), g.user["id"],
                         ),
                     )
             except Exception as exc:
@@ -1085,7 +1096,7 @@ def create_app() -> Flask:
             audit(int(g.user["id"]), "profile_updated", "user", g.user["id"])
             flash("Profile and sign-in settings updated.", "success")
             return redirect(url_for("profile"))
-        return render_template("profile.html", has_pushover_key=bool(g.user["pushover_user_key_enc"]))
+        return render_template("profile.html", has_pushover_key=bool(g.user["pushover_user_key_enc"]), has_discord_webhook=bool(g.user["discord_webhook_url_enc"]))
 
     @app.get("/users")
     @admin_required
@@ -1125,20 +1136,21 @@ def create_app() -> Flask:
                         conn.execute(
                             """
                             UPDATE users SET username = ?, email = ?, role = ?, active = ?,
-                                notify_email = ?, notify_pushover = ?, password_hash = ?, updated_at = ?
+                                notify_email = ?, notify_pushover = ?, notify_discord = ?, password_hash = ?, updated_at = ?
                             WHERE id = ?
                             """,
-                            (username, email, role, active, 1 if request.form.get("notify_email") else 0, 1 if request.form.get("notify_pushover") else 0, password_hash, now, user["id"]),
+                            (username, email, role, active, 1 if request.form.get("notify_email") else 0, 1 if request.form.get("notify_pushover") else 0, 1 if request.form.get("notify_discord") else 0, password_hash, now, user["id"]),
                         )
                         target_id = int(user["id"])
                     else:
                         cursor = conn.execute(
                             """
                             INSERT INTO users (username, email, password_hash, role, active,
-                                notify_email, notify_pushover, pushover_user_key_enc, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, ?)
+                                notify_email, notify_pushover, pushover_user_key_enc,
+                                notify_discord, discord_webhook_url_enc, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, '', ?, ?)
                             """,
-                            (username, email, password_hash, role, active, 1 if request.form.get("notify_email") else 0, 1 if request.form.get("notify_pushover") else 0, now, now),
+                            (username, email, password_hash, role, active, 1 if request.form.get("notify_email") else 0, 1 if request.form.get("notify_pushover") else 0, 1 if request.form.get("notify_discord") else 0, now, now),
                         )
                         target_id = int(cursor.lastrowid)
             except Exception as exc:
@@ -1212,6 +1224,8 @@ def create_app() -> Flask:
                     elif request.form.get("clear_pushover_app_token"):
                         values["pushover_app_token_enc"] = ""
                     set_settings(values)
+                elif section == "discord":
+                    set_settings({"discord_enabled": "1" if request.form.get("discord_enabled") else "0"})
                 elif section == "portainer":
                     provider = request.form.get("inventory_provider", "portainer").strip()
                     if provider not in {"portainer", "dockhand"}:
@@ -1266,6 +1280,7 @@ def create_app() -> Flask:
             "default_refresh_hours", "app_base_url",
             "smtp_enabled", "smtp_host", "smtp_port", "smtp_security", "smtp_username", "smtp_password_enc", "smtp_from_email", "smtp_from_name", "smtp_timeout",
             "pushover_enabled", "pushover_app_token_enc", "pushover_priority", "pushover_sound",
+            "discord_enabled",
             "openai_enabled", "openai_base_url", "openai_api_key_enc", "openai_model", "openai_timeout", "openai_max_tokens", "openai_auto_analyse",
             "inventory_provider",
             "portainer_enabled", "portainer_base_url", "portainer_api_token_enc", "portainer_verify_tls", "portainer_timeout", "portainer_sync_hours", "portainer_last_sync_at", "portainer_last_sync_status", "portainer_last_sync_error",
@@ -1310,6 +1325,22 @@ def create_app() -> Flask:
         except (NotificationError, RuntimeError) as exc:
             flash(str(exc), "error")
         return redirect(url_for("settings", section="pushover"))
+
+    @app.post("/settings/test-discord")
+    @admin_required
+    def test_discord_route():
+        require_csrf()
+        webhook_url = request.form.get("test_discord_webhook_url", "").strip()
+        if not webhook_url:
+            webhook_url = decrypt_secret(g.user["discord_webhook_url_enc"])
+        try:
+            if not webhook_url:
+                raise NotificationError("Enter a Discord webhook URL or save one in your profile.")
+            send_discord(webhook_url, "Software Release Radar", "Discord notifications are working.")
+            flash("Discord test notification sent.", "success")
+        except (NotificationError, RuntimeError) as exc:
+            flash(str(exc), "error")
+        return redirect(url_for("settings", section="discord"))
 
     @app.post("/settings/test-openai")
     @admin_required

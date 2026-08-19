@@ -9,7 +9,7 @@ Release-alert policy is evaluated from the broadest control to the most specific
 1. **System-wide release notifications**: an administrator can pause all update alerts.
 2. **Per-software preference**: each user can choose **Always notify**, **Mute**, or **Use global default** for a tracker.
 3. **Personal default**: used only when the tracker is set to **Use global default**.
-4. **Delivery channels**: Email and Pushover can be enabled independently.
+4. **Delivery channels**: Email, Pushover and Discord can be enabled independently.
 
 The system-wide switch is an absolute pause. A per-software **Always notify** choice overrides the personal default, but it cannot bypass the administrator-wide pause or deliver through a disabled channel.
 
@@ -27,7 +27,7 @@ The system-wide switch is an absolute pause. A per-software **Always notify** ch
 
 A release that is muted by system, personal, software, or channel policy is written to the notification delivery ledger as deliberately skipped. Re-enabling a switch later applies to future release events and does not send every old muted release.
 
-Failed delivery is different from deliberate skipping. Failed SMTP or Pushover delivery remains retryable because the intended policy allowed the alert but the channel could not complete it.
+Failed delivery is different from deliberate skipping. Failed SMTP, Pushover or Discord delivery remains retryable because the intended policy allowed the alert but the channel could not complete it.
 
 ## Per-software controls
 
@@ -50,6 +50,8 @@ Pushover requires both:
 
 Pushover delivery is restricted to the fixed HTTPS Pushover API endpoint. The destination cannot be changed through application settings or notification content.
 
+Discord requires the administrator to enable the channel and each user to save a Discord channel webhook URL under **Profile**. Webhook URLs are encrypted at rest. Delivery accepts only HTTPS webhook URLs on Discord's official `discord.com` or legacy `discordapp.com` hosts and sends plain release text without mentions.
+
 ## Security and auditability
 
-Notification preference changes are CSRF-protected and written to the audit log. Delivery records contain status and error text, but not SMTP passwords, Pushover tokens, or user keys. Integration secrets remain encrypted in SQLite.
+Notification preference changes are CSRF-protected and written to the audit log. Delivery records contain status and error text, but not SMTP passwords, Pushover tokens, user keys, or Discord webhook URLs. Integration secrets remain encrypted in SQLite.

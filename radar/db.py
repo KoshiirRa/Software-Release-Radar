@@ -77,8 +77,9 @@ def _seed_admin(conn: sqlite3.Connection) -> None:
         """
         INSERT INTO users
             (username, email, password_hash, role, active, notify_email,
-             notify_pushover, pushover_user_key_enc, created_at, updated_at)
-        VALUES (?, ?, ?, 'admin', 1, 1, 0, '', ?, ?)
+             notify_pushover, pushover_user_key_enc, notify_discord,
+             discord_webhook_url_enc, created_at, updated_at)
+        VALUES (?, ?, ?, 'admin', 1, 1, 0, '', 0, '', ?, ?)
         """,
         (username, email, password_hash, now, now),
     )
@@ -166,6 +167,8 @@ def init_db() -> None:
                 notify_email INTEGER NOT NULL DEFAULT 1,
                 notify_pushover INTEGER NOT NULL DEFAULT 0,
                 pushover_user_key_enc TEXT NOT NULL DEFAULT '',
+                notify_discord INTEGER NOT NULL DEFAULT 0,
+                discord_webhook_url_enc TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 last_login_at TEXT
@@ -185,7 +188,7 @@ def init_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 event_id INTEGER NOT NULL,
                 user_id INTEGER NOT NULL,
-                channel TEXT NOT NULL CHECK (channel IN ('email', 'pushover')),
+                channel TEXT NOT NULL CHECK (channel IN ('email', 'pushover', 'discord')),
                 status TEXT NOT NULL CHECK (status IN ('sent', 'failed', 'skipped')),
                 error TEXT,
                 sent_at TEXT NOT NULL,
@@ -401,6 +404,38 @@ def init_db() -> None:
         ]:
             _add_column(conn, "events", definition)
 
+        _add_column(conn, "users", "notify_discord INTEGER NOT NULL DEFAULT 0")
+        _add_column(conn, "users", "discord_webhook_url_enc TEXT NOT NULL DEFAULT ''")
+
+        delivery_sql = str(
+            conn.execute(
+                "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'notification_deliveries'"
+            ).fetchone()[0]
+        )
+        if "'discord'" not in delivery_sql:
+            conn.executescript(
+                """
+                ALTER TABLE notification_deliveries RENAME TO notification_deliveries_old;
+                CREATE TABLE notification_deliveries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    channel TEXT NOT NULL CHECK (channel IN ('email', 'pushover', 'discord')),
+                    status TEXT NOT NULL CHECK (status IN ('sent', 'failed', 'skipped')),
+                    error TEXT,
+                    sent_at TEXT NOT NULL,
+                    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    UNIQUE (event_id, user_id, channel)
+                );
+                INSERT INTO notification_deliveries
+                    (id, event_id, user_id, channel, status, error, sent_at)
+                SELECT id, event_id, user_id, channel, status, error, sent_at
+                  FROM notification_deliveries_old;
+                DROP TABLE notification_deliveries_old;
+                """
+            )
+
         for definition in [
             "provider TEXT NOT NULL DEFAULT 'portainer'",
             "source_endpoint_id TEXT",
@@ -429,6 +464,7 @@ def init_db() -> None:
             "pushover_app_token_enc": "",
             "pushover_priority": "0",
             "pushover_sound": "pushover",
+            "discord_enabled": "0",
             "openai_enabled": "0",
             "openai_base_url": "",
             "openai_api_key_enc": "",

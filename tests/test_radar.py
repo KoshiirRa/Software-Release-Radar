@@ -277,7 +277,7 @@ class RadarTests(unittest.TestCase):
         self.assertEqual(send_pushover.call_count, 1)
         with connect() as conn:
             deliveries = conn.execute("SELECT * FROM notification_deliveries").fetchall()
-        self.assertEqual(len(deliveries), 2)
+        self.assertEqual(len(deliveries), 3)
 
     def test_openai_compatible_chat_uses_chat_completions(self):
         init_db()

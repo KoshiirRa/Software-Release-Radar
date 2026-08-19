@@ -7,6 +7,7 @@
     <button type="button" data-settings-target="general"><span>General</span><small>URLs and defaults</small></button>
     <button type="button" data-settings-target="smtp"><span>SMTP email</span><small>Mail and password reset</small></button>
     <button type="button" data-settings-target="pushover"><span>Pushover</span><small>Push notifications</small></button>
+    <button type="button" data-settings-target="discord"><span>Discord</span><small>Webhook notifications</small></button>
     <button type="button" data-settings-target="portainer"><span>Inventory</span><small>Portainer or Dockhand</small></button>
     <button type="button" data-settings-target="openai"><span>AI assistant</span><small>LiteLLM analysis and chat</small></button>
   </aside>
@@ -56,6 +57,17 @@
         <div class="form-actions left-actions"><button class="button primary" type="submit">Save Pushover settings</button></div>
       </form>
       <section class="panel settings-card test-card wide-card"><div class="section-heading"><h2>Test Pushover</h2><p>Uses the entered key or your saved Profile key.</p></div><form method="post" action="{{ url_for('test_pushover_route') }}" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="password" name="test_pushover_key" placeholder="Pushover user/group key"><button class="button secondary" type="submit">Send test push</button></form></section>
+    </section>
+
+    <section class="settings-section" data-settings-section="discord" hidden>
+      <form method="post" class="panel settings-card wide-card">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="section" value="discord">
+        <div class="section-heading"><h2>Discord</h2><p>Send release notifications through user-configured Discord webhooks.</p></div>
+        <label class="inline-check"><input type="checkbox" name="discord_enabled" {{ 'checked' if settings['discord_enabled'] == '1' else '' }}> Enable Discord</label>
+        <p class="field-help">Each user saves their encrypted webhook URL under Profile and chooses whether to receive Discord alerts.</p>
+        <div class="form-actions left-actions"><button class="button primary" type="submit">Save Discord settings</button></div>
+      </form>
+      <section class="panel settings-card test-card wide-card"><div class="section-heading"><h2>Test Discord</h2><p>Uses the entered webhook or your saved Profile webhook.</p></div><form method="post" action="{{ url_for('test_discord_route') }}" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="password" name="test_discord_webhook_url" placeholder="https://discord.com/api/webhooks/…"><button class="button secondary" type="submit">Send test message</button></form></section>
     </section>
 
     <section class="settings-section" data-settings-section="portainer" hidden>

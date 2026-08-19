@@ -563,6 +563,7 @@ def install_fleet_notification_controls(app: Flask) -> None:
                                SET notifications_enabled = ?,
                                    notify_email = ?,
                                    notify_pushover = ?,
+                                   notify_discord = ?,
                                    updated_at = ?
                              WHERE id = ?
                             """,
@@ -575,6 +576,9 @@ def install_fleet_notification_controls(app: Flask) -> None:
                                 1 if request.form.get("notify_email") else 0,
                                 1
                                 if request.form.get("notify_pushover")
+                                else 0,
+                                1
+                                if request.form.get("notify_discord")
                                 else 0,
                                 utcnow(),
                                 user_id,
@@ -730,6 +734,7 @@ def install_fleet_notification_controls(app: Flask) -> None:
             "notifications.html",
             notification_user=dict(user),
             has_pushover_key=bool(user["pushover_user_key_enc"]),
+            has_discord_webhook=bool(user["discord_webhook_url_enc"]),
             trackers=trackers,
             system_enabled=system_enabled,
             preference_counts=counts,
