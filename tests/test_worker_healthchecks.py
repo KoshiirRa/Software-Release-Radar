@@ -34,7 +34,9 @@ class WorkerHealthcheckTests(unittest.TestCase):
 
     def test_upgrade_and_restore_paths_keep_the_existing_worker_identity(self):
         root = Path(__file__).parents[1]
-        for relative_path in ("scripts/setup.sh", "scripts/restore.sh"):
+        for relative_path in (
+            ".github/workflows/ci.yml", "scripts/setup.sh", "scripts/restore.sh",
+        ):
             script = (root / relative_path).read_text()
             self.assertIn("portainer-worker", script)
             self.assertNotIn("inventory-worker", script)

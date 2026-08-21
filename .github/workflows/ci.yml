@@ -98,7 +98,7 @@ jobs:
 
           radar_id="$(docker compose ps -q radar)"
           scheduler_id="$(docker compose ps -q scheduler)"
-          worker_id="$(docker compose ps -q inventory-worker)"
+          worker_id="$(docker compose ps -q portainer-worker)"
           test -n "$radar_id"
           test -n "$scheduler_id"
           test -n "$worker_id"
