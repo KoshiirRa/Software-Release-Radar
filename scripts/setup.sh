@@ -138,7 +138,7 @@ if [[ "$healthy" != "true" ]]; then
 fi
 
 scheduler_id="$(docker compose ps -q scheduler)"
-worker_id="$(docker compose ps -q inventory-worker)"
+worker_id="$(docker compose ps -q portainer-worker)"
 [[ -n "$scheduler_id" ]] || fail "The automatic release scheduler container was not created."
 [[ -n "$worker_id" ]] || fail "The inventory background worker container was not created."
 scheduler_status="$(docker inspect --format '{{.State.Status}}' "$scheduler_id")"

@@ -189,7 +189,7 @@ Useful commands:
 ```bash
 docker compose logs --tail=100 radar
 docker compose logs --tail=100 scheduler
-docker compose logs --tail=100 inventory-worker
+docker compose logs --tail=100 portainer-worker
 ```
 
 Before sharing logs publicly, remove:

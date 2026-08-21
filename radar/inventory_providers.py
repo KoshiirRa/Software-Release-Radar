@@ -23,6 +23,23 @@ class EnvironmentUnavailable(InventoryProviderError):
     """An environment is known but its Docker connection is unavailable."""
 
 
+def validate_origin_url(value: str, label: str) -> str:
+    """Return a normalised HTTP(S) origin or reject URL components we do not use."""
+    value = (value or "").strip()
+    parsed = urllib.parse.urlsplit(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or not parsed.hostname:
+        raise ValueError(f"{label} must be a complete HTTP or HTTPS origin.")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError(f"{label} must not include embedded credentials.")
+    if parsed.path not in {"", "/"} or parsed.query or parsed.fragment:
+        raise ValueError(f"{label} must be an origin without a path, query or fragment.")
+    try:
+        parsed.port
+    except ValueError as exc:
+        raise ValueError(f"{label} contains an invalid port.") from exc
+    return value.rstrip("/")
+
+
 @dataclass(frozen=True)
 class InventoryEnvironment:
     source_id: str
@@ -69,15 +86,14 @@ class DockhandProvider(InventoryProvider):
         if self._request_override:
             return self._request_override(path, method=method)
         settings = self._settings()
-        base_url = (settings.get("dockhand_base_url") or "").strip().rstrip("/")
+        raw_base_url = (settings.get("dockhand_base_url") or "").strip()
         token = decrypt_secret(settings.get("dockhand_api_token_enc", ""))
-        if not base_url:
+        if not raw_base_url:
             raise InventoryProviderError("Dockhand base URL is not configured.")
-        parsed_base = urllib.parse.urlparse(base_url)
-        if parsed_base.scheme not in {"http", "https"} or not parsed_base.netloc:
-            raise InventoryProviderError(
-                "Dockhand base URL must be a complete HTTP or HTTPS URL."
-            )
+        try:
+            base_url = validate_origin_url(raw_base_url, "Dockhand base URL")
+        except ValueError as exc:
+            raise InventoryProviderError(str(exc)) from exc
         if not token:
             raise InventoryProviderError("Dockhand API token is not configured.")
         if not path.startswith("/"):
@@ -227,6 +243,10 @@ class DockhandProvider(InventoryProvider):
             except EnvironmentUnavailable:
                 continue
             online += 1
+        if environments and online == 0:
+            raise InventoryProviderError(
+                "Dockhand is reachable, but all configured Docker environments are offline."
+            )
         return {
             "ok": True,
             "provider": self.name,

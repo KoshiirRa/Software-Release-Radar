@@ -1,18 +1,24 @@
 from __future__ import annotations
 
 import base64
+import io
 import json
 import os
 import tempfile
 import threading
 import unittest
+from contextlib import redirect_stdout
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 from radar.auth import hash_password
 from radar.db import connect, init_db, set_settings
-from radar.inventory_providers import DockhandProvider, InventoryProviderError
-from radar.portainer import import_service, sync_inventory
+from radar.inventory_providers import (
+    DockhandProvider, InventoryProviderError, validate_origin_url,
+)
+from radar.manage import main as manage_main
+from radar.portainer import PortainerError, import_service, sync_inventory
 from radar.secrets_store import encrypt_secret
 
 
@@ -169,6 +175,15 @@ class DockhandInventoryTests(unittest.TestCase):
         self.assertEqual(environment["status"], "error")
         self.assertNotIn("dh_test_token", "\n".join(result.errors))
 
+    def test_mixed_valid_and_malformed_response_preserves_inventory(self):
+        sync_inventory()
+        DockhandHandler.containers = [DockhandHandler.containers[0], {"name": "broken"}]
+        result = sync_inventory()
+        self.assertFalse(result.ok)
+        with connect() as conn:
+            service = conn.execute("SELECT present FROM portainer_services").fetchone()
+        self.assertEqual(service["present"], 1)
+
     def test_tracker_rebinds_after_dockhand_container_recreation(self):
         sync_inventory()
         with connect() as conn:
@@ -199,6 +214,60 @@ class DockhandInventoryTests(unittest.TestCase):
         normalised = DockhandProvider.normalise_container(DockhandHandler.containers[0])
         self.assertIn("(healthy)", normalised["Status"])
         self.assertEqual(normalised["Ports"][0]["PublicPort"], 18080)
+
+    def test_base_url_must_be_an_origin_at_save_and_request_boundaries(self):
+        self.assertEqual(validate_origin_url("https://dockhand.example:8443/", "Dockhand base URL"),
+                         "https://dockhand.example:8443")
+        for value in (
+            "https://user:secret@dockhand.example",
+            "https://dockhand.example/api",
+            "https://dockhand.example?token=secret",
+            "https://dockhand.example#fragment",
+        ):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                validate_origin_url(value, "Dockhand base URL")
+            set_settings({"dockhand_base_url": value})
+            with self.assertRaises(InventoryProviderError):
+                DockhandProvider().list_environments()
+
+    def test_connection_fails_when_every_environment_is_offline(self):
+        DockhandHandler.online = False
+        with self.assertRaisesRegex(InventoryProviderError, "all configured.*offline"):
+            DockhandProvider().test_connection()
+
+    def test_due_sync_uses_dockhand_schedule(self):
+        now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        set_settings({
+            "inventory_provider": "dockhand",
+            "dockhand_last_sync_at": now,
+            "dockhand_sync_hours": "24",
+            "portainer_last_sync_at": "",
+            "portainer_sync_hours": "1",
+        })
+        output = io.StringIO()
+        with redirect_stdout(output):
+            exit_code = manage_main(["portainer-sync", "--due"])
+        self.assertEqual(exit_code, 0)
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["action"], "skipped")
+        self.assertEqual(payload["sync_hours"], 24)
+
+    def test_derived_environment_id_collision_is_detected_without_overwrite(self):
+        with connect() as conn:
+            conn.execute(
+                "INSERT INTO portainer_environments "
+                "(endpoint_id, provider, source_endpoint_id, name, status, updated_at) "
+                "VALUES (-8, 'other', 'legacy', 'Existing', 'online', '2026-08-21T00:00:00+00:00')"
+            )
+            conn.commit()
+        with self.assertRaisesRegex(PortainerError, "identity collision"):
+            sync_inventory()
+        with connect() as conn:
+            row = conn.execute(
+                "SELECT provider, source_endpoint_id, name FROM portainer_environments WHERE endpoint_id=-8"
+            ).fetchone()
+        self.assertEqual((row["provider"], row["source_endpoint_id"], row["name"]),
+                         ("other", "legacy", "Existing"))
 
     def test_existing_install_migration_is_idempotent(self):
         init_db()

@@ -52,7 +52,7 @@ New release events are then passed to the normal notification delivery path.
 
 The scheduler does not require an LLM.
 
-### `software-release-radar-inventory-worker`
+### `software-release-radar-portainer-worker`
 
 Runs `python -m radar.inventory_worker`.
 
@@ -264,6 +264,8 @@ The application validates or escapes these inputs according to where they are us
 
 radar.inventory_providers defines the provider boundary. Portainer and Dockhand adapters turn provider-specific environment and container responses into the existing inventory reconciliation model. The reconciliation path owns persistence, tracker linking, container-recreation rebinding, display-name reconciliation and version/repository detection.
 
-The legacy portainer_environments, portainer_services and job table names remain in SQLite for backwards-compatible upgrades. Additive provider and source_endpoint_id columns namespace the records. Existing rows receive provider=portainer. Dockhand numeric environment IDs use stable negative internal endpoint keys, avoiding collisions with existing Portainer endpoint IDs while preserving tracker relationships.
+The legacy portainer_environments, portainer_services and job table names remain in SQLite for backwards-compatible upgrades. Additive provider and source_endpoint_id columns namespace the records. Existing rows receive provider=portainer. Dockhand environment IDs use stable negative internal endpoint keys. The provider and source identity is stored authoritatively and synchronisation stops without overwriting data if a derived-key collision is detected.
+
+Provider switching is explicit rather than destructive. Inventory and schedules are namespaced by provider, and existing tracker mappings remain attached to their original provider record. Importing a matching service from the newly selected provider is the administrator-authorised handover point and clears the old service link.
 
 Dockhand availability is checked before container reconciliation because Dockhand currently maps a Docker connection failure to an empty list. Failed probes never enter the absent-marking transaction, so last-known services remain present. A successful probe followed by an empty list is treated as a genuinely empty environment.

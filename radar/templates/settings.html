@@ -63,7 +63,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="section" value="portainer">
         <div class="section-heading"><h2>Docker inventory provider</h2><p>Discover environments, Compose projects and containers through Portainer or Dockhand.</p></div>
         <label class="inline-check"><input type="checkbox" name="portainer_enabled" {{ 'checked' if settings['portainer_enabled'] == '1' else '' }}> Enable inventory synchronisation</label>
-        <label>Inventory provider<select name="inventory_provider"><option value="portainer" {{ 'selected' if settings['inventory_provider'] == 'portainer' else '' }}>Portainer</option><option value="dockhand" {{ 'selected' if settings['inventory_provider'] == 'dockhand' else '' }}>Dockhand</option></select><small>Only the selected provider is synchronised. Saved settings for the other provider are retained.</small></label>
+        <label>Inventory provider<select name="inventory_provider"><option value="portainer" {{ 'selected' if settings['inventory_provider'] == 'portainer' else '' }}>Portainer</option><option value="dockhand" {{ 'selected' if settings['inventory_provider'] == 'dockhand' else '' }}>Dockhand</option></select><small>Only the selected provider is synchronised. Settings and existing tracker mappings for the other provider are retained until you explicitly import a replacement service.</small></label>
         {% for provider, label, token_configured in [('portainer', 'Portainer', has_portainer_token), ('dockhand', 'Dockhand', has_dockhand_token)] %}
         <fieldset class="settings-card">
           <legend>{{ label }}</legend>

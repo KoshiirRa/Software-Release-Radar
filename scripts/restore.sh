@@ -43,7 +43,7 @@ wait_for_healthy_stack() {
     local radar_id scheduler_id worker_id radar_health scheduler_state worker_state
     radar_id="$(docker compose ps -q radar 2>/dev/null || true)"
     scheduler_id="$(docker compose ps -q scheduler 2>/dev/null || true)"
-    worker_id="$(docker compose ps -q inventory-worker 2>/dev/null || true)"
+    worker_id="$(docker compose ps -q portainer-worker 2>/dev/null || true)"
     radar_health=""
     scheduler_state=""
     worker_state=""
@@ -75,7 +75,7 @@ validate_backup "$SAFETY_BACKUP"
 printf 'Safety backup: %s\n' "$SAFETY_BACKUP"
 
 printf 'Stopping Release Radar services...\n'
-docker compose stop scheduler inventory-worker radar >/dev/null
+docker compose stop scheduler portainer-worker radar >/dev/null
 
 restore_failed=false
 rollback_failed=false
@@ -99,7 +99,7 @@ fi
 
 if ! wait_for_healthy_stack; then
   docker compose ps >&2 || true
-  docker compose logs --tail=100 radar scheduler inventory-worker >&2 || true
+  docker compose logs --tail=100 radar scheduler portainer-worker >&2 || true
   fail "The stack did not return to a healthy state after the restore operation."
 fi
 

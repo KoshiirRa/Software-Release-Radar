@@ -69,7 +69,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  inventory-worker:
+  portainer-worker:
     image: "software-release-radar:${RADAR_VERSION:-2.8.0}"
     build:
       context: .

@@ -50,7 +50,7 @@ The Compose stack contains three long-running services built from the same Pytho
 |---|---|
 | `radar` | Flask application served by Gunicorn |
 | `scheduler` | Runs due release checks automatically and dispatches notifications for new releases |
-| `inventory-worker` | Processes inventory-provider synchronisation and bulk-import jobs |
+| `portainer-worker` | Processes Portainer or Dockhand inventory synchronisation and bulk-import jobs. The legacy service name is retained so Compose upgrades cannot leave a second worker running. |
 
 Compose assigns project-scoped container and volume names automatically. The repository deliberately does not hard-code global container names or a global database-volume name. This prevents two independent checkouts from silently colliding or sharing the same database.
 
@@ -62,7 +62,7 @@ The scheduler wakes every 60 seconds by default, but it only checks trackers who
 docker compose ps
 ```
 
-The `radar` service should show `healthy`. The `scheduler` and `inventory-worker` services should show `running`.
+The `radar` service should show `healthy`. The `scheduler` and `portainer-worker` services should show `running`.
 
 Check the health endpoint:
 
@@ -79,7 +79,7 @@ Expected shape for v2.8.0:
 View recent logs:
 
 ```bash
-docker compose logs --tail=100 radar scheduler inventory-worker
+docker compose logs --tail=100 radar scheduler portainer-worker
 ```
 
 ## Environment file

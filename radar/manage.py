@@ -444,8 +444,11 @@ def portainer_inventory_command(_: argparse.Namespace) -> int:
 def portainer_sync_command(args: argparse.Namespace) -> int:
     init_db()
     if args.due:
-        last = parse_utc(get_setting("portainer_last_sync_at", ""))
-        hours = int(get_setting("portainer_sync_hours", "1") or 1)
+        provider = str(get_setting("inventory_provider", "portainer") or "portainer")
+        if provider not in {"portainer", "dockhand"}:
+            raise ValueError("Configured inventory provider is not supported.")
+        last = parse_utc(get_setting(f"{provider}_last_sync_at", ""))
+        hours = int(get_setting(f"{provider}_sync_hours", "1") or 1)
         if last is not None:
             from datetime import datetime, timezone
             if (datetime.now(timezone.utc) - last).total_seconds() < hours * 3600:

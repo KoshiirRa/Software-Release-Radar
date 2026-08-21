@@ -191,6 +191,44 @@ def _stored_endpoint_id(provider: str, source_id: str) -> int:
     return -(int.from_bytes(digest[:7], "big") + 1)
 
 
+def _validate_container_listing(environment: InventoryEnvironment,
+                                containers: Any) -> list[dict[str, Any]]:
+    if not isinstance(containers, list):
+        raise PortainerError(
+            f"{environment.name}: container listing returned an unexpected response"
+        )
+    for item in containers:
+        if not isinstance(item, dict):
+            raise PortainerError(
+                f"{environment.name}: container listing contained a malformed item"
+            )
+        if not str(item.get("Id") or item.get("id") or "").strip():
+            raise PortainerError(
+                f"{environment.name}: container listing contained an item without an ID"
+            )
+    return containers
+
+
+def _assert_environment_identity(conn, endpoint_id: int, provider: str,
+                                 source_id: str) -> None:
+    existing = conn.execute(
+        "SELECT provider, source_endpoint_id FROM portainer_environments WHERE endpoint_id=?",
+        (endpoint_id,),
+    ).fetchone()
+    if existing is None:
+        return
+    existing_provider = str(existing["provider"] or "portainer")
+    existing_source = str(
+        existing["source_endpoint_id"]
+        if existing["source_endpoint_id"] not in (None, "")
+        else endpoint_id
+    )
+    if (existing_provider, existing_source) != (provider, source_id):
+        raise PortainerError(
+            "Inventory environment identity collision detected; existing inventory was preserved."
+        )
+
+
 def _endpoint_id(endpoint: dict[str, Any]) -> int:
     value = endpoint.get("Id", endpoint.get("id"))
     return int(value)
@@ -451,6 +489,9 @@ def sync_inventory(progress: Callable[..., None] | None = None) -> PortainerSync
         seen_environment_ids.add(endpoint_id)
         environments_count += 1
         with transaction() as conn:
+            _assert_environment_identity(
+                conn, endpoint_id, provider.name, environment.source_id,
+            )
             conn.execute(
                 """
                 INSERT INTO portainer_environments
@@ -470,7 +511,9 @@ def sync_inventory(progress: Callable[..., None] | None = None) -> PortainerSync
                 ),
             )
         try:
-            containers = provider.list_containers(environment)
+            containers = _validate_container_listing(
+                environment, provider.list_containers(environment),
+            )
         except (PortainerError, InventoryProviderError) as exc:
             expected_offline = (
                 isinstance(exc, EnvironmentUnavailable)
@@ -494,9 +537,6 @@ def sync_inventory(progress: Callable[..., None] | None = None) -> PortainerSync
                 "UPDATE portainer_environments SET status='online', last_seen_at=?, updated_at=? WHERE endpoint_id=?",
                 (synced_at, synced_at, endpoint_id),
             )
-        if not isinstance(containers, list):
-            errors.append(f"{endpoint_name}: container listing returned an unexpected response")
-            continue
         # Only mark an environment's previous containers absent after its current
         # listing succeeds. A temporarily unreachable endpoint must not erase its
         # last known inventory.
@@ -506,11 +546,7 @@ def sync_inventory(progress: Callable[..., None] | None = None) -> PortainerSync
                 (synced_at, endpoint_id),
             )
         for item in containers:
-            if not isinstance(item, dict):
-                continue
             container_id = str(item.get("Id") or item.get("id") or "").strip()
-            if not container_id:
-                continue
             services_count += 1
             name = _normalise_container_name(item)
             image = str(item.get("Image") or item.get("image") or "")

@@ -23,6 +23,7 @@ from .db import (
     set_settings, transaction, utcnow,
 )
 from .github import GitHubError, get_recent_releases, normalise_repository
+from .inventory_providers import validate_origin_url
 from .notifications import NotificationError, dispatch_release_notifications, send_email, send_pushover
 from .probes import probe_all, probe_tracker
 from .presentation import render_assistant_text
@@ -1222,10 +1223,13 @@ def create_app() -> Flask:
                     }
                     for item in ("portainer", "dockhand"):
                         label = item.title()
-                        base_url = _safe_optional_url(
-                            request.form.get(f"{item}_base_url", ""),
-                            f"{label} base URL",
-                        ) or ""
+                        raw_base_url = request.form.get(f"{item}_base_url", "")
+                        if item == "dockhand" and raw_base_url.strip():
+                            base_url = validate_origin_url(raw_base_url, "Dockhand base URL")
+                        else:
+                            base_url = _safe_optional_url(
+                                raw_base_url, f"{label} base URL",
+                            ) or ""
                         values.update({
                             f"{item}_base_url": base_url.rstrip("/"),
                             f"{item}_verify_tls": "1" if request.form.get(f"{item}_verify_tls") else "0",

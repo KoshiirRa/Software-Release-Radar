@@ -412,6 +412,11 @@ def init_db() -> None:
             "container_status TEXT",
         ]:
             _add_column(conn, "portainer_services", definition)
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_inventory_environment_source "
+            "ON portainer_environments(provider, source_endpoint_id) "
+            "WHERE source_endpoint_id IS NOT NULL"
+        )
         now = utcnow()
         defaults = {
             "default_refresh_hours": str(DEFAULT_REFRESH_HOURS),

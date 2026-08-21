@@ -92,6 +92,8 @@ Open **Settings → Docker inventory provider**.
 
 Select either **Portainer** or **Dockhand**. Release Radar saves each provider configuration separately, so switching providers does not discard the other provider's URL or encrypted credential. Existing installations default to Portainer and require no manual migration.
 
+Switching changes which provider is synchronised and displayed, but it does not silently move existing tracker-to-container mappings. Those mappings remain attached to their original provider record until an administrator imports the corresponding service from the newly selected provider. Importing that service explicitly transfers the tracker mapping and clears the previous service link. Switching back exposes the retained inventory again.
+
 For either provider:
 
 - use an HTTPS base URL wherever possible;
@@ -109,7 +111,7 @@ Create a dedicated Portainer API access token with permission to list the requir
 1. Sign in to Dockhand with an account that can view the required environments and containers.
 2. Open your user **Profile** by clicking your avatar in the sidebar, then scroll to **API tokens**.
 3. Create a dedicated token for Release Radar and copy the dh_ value when it is shown.
-4. In Release Radar, select **Dockhand**, enter the Dockhand base URL and paste the token.
+4. In Release Radar, select **Dockhand**, enter the Dockhand origin, such as `https://dockhand.example.com` or `https://dockhand.example.com:8443`, and paste the token. Do not include credentials, a path, query string or fragment in the URL.
 5. Save, choose **Test inventory connection**, then open **Inventory** and synchronise.
 
 Release Radar sends the token only as Authorization: Bearer. It stores the token encrypted and never returns it to the browser after saving.
