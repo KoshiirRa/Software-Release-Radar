@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .db import connect, transaction, utcnow
+from .db import connect, get_setting, transaction, utcnow
 from .version import APP_VERSION
 from .portainer import PortainerError, sync_inventory
 
@@ -223,6 +223,21 @@ def _probe_portainer(tracker, *, refresh_inventory: bool = True) -> tuple[str | 
     service_id = tracker["portainer_service_id"]
     if service_id in (None, ""):
         raise ValueError("Inventory service mapping is not configured.")
+    active_provider = str(get_setting("inventory_provider", "portainer") or "portainer").strip().lower()
+    with connect() as conn:
+        mapped_service = conn.execute(
+            "SELECT provider FROM portainer_services WHERE id=?",
+            (int(service_id),),
+        ).fetchone()
+    if mapped_service is not None:
+        mapped_provider = str(mapped_service["provider"] or "portainer").strip().lower()
+        if mapped_provider != active_provider:
+            raise RuntimeError(
+                f"The mapped inventory service uses {mapped_provider.title()}, but the active "
+                f"inventory provider is {active_provider.title()}. Switch back to "
+                f"{mapped_provider.title()} or import and rebind the corresponding service "
+                f"from {active_provider.title()}."
+            )
     started = time.monotonic()
     result = sync_inventory() if refresh_inventory else None
     with connect() as conn:

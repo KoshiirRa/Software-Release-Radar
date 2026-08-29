@@ -19,6 +19,7 @@ from radar.inventory_providers import (
 )
 from radar.manage import main as manage_main
 from radar.portainer import PortainerError, import_service, sync_inventory
+from radar.probes import probe_tracker
 from radar.secrets_store import encrypt_secret
 
 
@@ -205,6 +206,51 @@ class DockhandInventoryTests(unittest.TestCase):
         self.assertEqual(current["tracker_id"], tracker_id)
         self.assertEqual(tracker["portainer_service_id"], current["id"])
         self.assertEqual(tracker["inventory_source"], "dockhand")
+
+    def test_inventory_probe_rejects_mappings_from_inactive_provider(self):
+        sync_inventory()
+        with connect() as conn:
+            dockhand_service_id = int(
+                conn.execute(
+                    "SELECT id FROM portainer_services WHERE provider='dockhand'"
+                ).fetchone()["id"]
+            )
+            now = "2026-08-28T00:00:00+00:00"
+            conn.execute(
+                "INSERT INTO portainer_environments "
+                "(endpoint_id, provider, source_endpoint_id, name, status, updated_at) "
+                "VALUES (42, 'portainer', '42', 'portainer-host', 'online', ?)",
+                (now,),
+            )
+            cursor = conn.execute(
+                "INSERT INTO portainer_services "
+                "(endpoint_id, container_id, container_name, provider, detected_version, "
+                "state, present, first_seen_at, last_seen_at, updated_at) "
+                "VALUES (42, 'portainer-container-1', 'release-radar', 'portainer', "
+                "'2.6.0', 'running', 1, ?, ?, ?)",
+                (now, now, now),
+            )
+            portainer_service_id = int(cursor.lastrowid)
+            conn.commit()
+
+        portainer_tracker_id, _ = import_service(
+            portainer_service_id, "example/portainer-release-radar", name="Portainer Radar"
+        )
+        portainer_to_dockhand = probe_tracker(portainer_tracker_id, refresh_portainer=False)
+        self.assertEqual(portainer_to_dockhand.status, "error")
+        self.assertIn("uses Portainer", portainer_to_dockhand.error)
+        self.assertIn("active inventory provider is Dockhand", portainer_to_dockhand.error)
+        self.assertIn("import and rebind", portainer_to_dockhand.error)
+
+        dockhand_tracker_id, _ = import_service(
+            dockhand_service_id, "example/dockhand-release-radar", name="Dockhand Radar"
+        )
+        set_settings({"inventory_provider": "portainer"})
+        dockhand_to_portainer = probe_tracker(dockhand_tracker_id, refresh_portainer=False)
+        self.assertEqual(dockhand_to_portainer.status, "error")
+        self.assertIn("uses Dockhand", dockhand_to_portainer.error)
+        self.assertIn("active inventory provider is Portainer", dockhand_to_portainer.error)
+        self.assertIn("import and rebind", dockhand_to_portainer.error)
 
     def test_normaliser_rejects_malformed_labels_and_keeps_health_and_ports(self):
         with self.assertRaises(InventoryProviderError):
